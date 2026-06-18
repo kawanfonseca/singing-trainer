@@ -265,15 +265,15 @@ export const VOCAL_RANGE_STEPS: VocalRangeStep[] = [
   {
     id: 'denseHigh',
     title: 'Agudo com voz cheia',
-    prompt: 'Suba a voz mantendo o som mais cheio, firme e confortável.',
-    detail: 'Não force. Pare se sentir aperto, dor ou pressão. Essa etapa tenta estimar até onde sua voz mantém mais corpo.',
+    prompt: 'Suba a voz mantendo um som mais cheio e firme, como em um refrão forte de música pop ou musical.',
+    detail: 'Pense em uma sensação de belting: voz presente, com corpo, firme e de "refrão grande". Referências sonoras: "Shallow" (Lady Gaga), "Let It Go" (Idina Menzel), "Rolling in the Deep" (Adele), "Listen" (Beyoncé), "Stone Cold" (Demi Lovato), "Defying Gravity" (Wicked), "I Will Always Love You" (Whitney Houston). Use essas músicas só como imagem da sensação, não como meta. Não tente cantar igual à cantora nem alcançar a nota original — faça na sua altura confortável. Algumas dessas músicas são muito exigentes tecnicamente; elas servem apenas como referência sonora, não como meta de nota ou performance. Não é para gritar. Não é para forçar. Pare se sentir aperto, dor, pressão ou vontade de empurrar a voz. Esta etapa estima até onde sua voz sobe mantendo mais corpo e firmeza antes de ficar instável, perder corpo ou mudar para uma voz mais leve.',
     durationMs: 6500,
   },
   {
     id: 'lightHigh',
     title: 'Agudo com voz leve',
-    prompt: 'Suba em "u" deixando a voz ficar leve naturalmente.',
-    detail: 'Aqui não precisa manter corpo. Deixe a voz afinar ou virar falsete se isso acontecer naturalmente.',
+    prompt: 'Agora suba deixando a voz ficar leve naturalmente, como falsete ou voz de cabeça.',
+    detail: 'Aqui não precisa manter corpo de refrão forte. Deixe a voz afinar ou virar falsete se isso acontecer naturalmente.',
     durationMs: 6500,
   },
 ]

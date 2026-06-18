@@ -357,7 +357,7 @@ function DetailedAnalysisReport({ analysis }: DetailedAnalysisReportProps) {
       </div>
 
       <div className="analysis-summary-grid">
-        <AnalysisCard label="Todas as notas detectadas" value={formatRangeWithReliability(analysis.absoluteRange ?? null)} />
+        <AnalysisCard label="Alcance total detectado" value={formatRangeWithReliability(analysis.absoluteRange ?? null)} />
         <AnalysisCard label="Notas detectadas com confiança" value={formatRangeWithReliability(analysis.reliableRange ?? null)} />
         <AnalysisCard label="Notas sustentadas" value={formatRangeWithReliability(analysis.sustainedRange ?? null)} />
         <AnalysisCard label="Notas cantáveis com estabilidade" value={formatRangeWithReliability(analysis.usableRange ?? null)} />
