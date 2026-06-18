@@ -461,6 +461,10 @@ export function saveVocalRangeResult(result: VocalRangeResult) {
   return result
 }
 
+export function clearVocalRangeResult() {
+  localStorage.removeItem(VOCAL_RANGE_STORAGE_KEY)
+}
+
 export function buildPitchFrames(draft: VocalRangeDraft): PitchFrame[] {
   const timestamps = Object.values(draft)
     .flatMap((step) => step.samples)

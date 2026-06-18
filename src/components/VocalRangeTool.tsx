@@ -16,6 +16,7 @@ import {
   VOCAL_RANGE_STEPS,
   addRangeSample,
   buildRangeResult,
+  clearVocalRangeResult,
   createVocalRangeDraft,
   createVocalRangeStepDraft,
   getStepSampleCount,
@@ -131,7 +132,9 @@ export function VocalRangeTool({
   }
 
   function resetRange() {
+    clearVocalRangeResult()
     setDraft(createVocalRangeDraft())
+    setSavedResult(null)
     setIsMeasuring(false)
     setStepProgress(0)
     setActiveStepIndex(0)
@@ -178,7 +181,7 @@ export function VocalRangeTool({
         <RangeStat label="Semitons" value={displayResult ? displayResult.semitones.toString() : '--'} />
         <RangeStat label="Oitavas" value={displayResult?.octaveLabel ?? '--'} />
         <RangeStat label="Tipo" value={displayResult?.typeEstimate.label ?? '--'} />
-        <RangeStat label="Confiável" value={formatCompactRange(displayResult?.analysis.reliableRange ?? null)} />
+        <RangeStat label="Confiável" value={formatCompactRange(displayResult?.analysis?.reliableRange ?? null)} />
         <RangeStat label="Denso até" value={displayResult?.denseHighNote ?? '--'} />
         <RangeStat label="Quebra" value={displayResult?.breakEstimate?.note ?? '--'} />
       </div>
@@ -323,12 +326,12 @@ export function VocalRangeTool({
 }
 
 type DetailedAnalysisReportProps = {
-  analysis: VocalRangeAnalysis
+  analysis: Partial<VocalRangeAnalysis>
 }
 
 function DetailedAnalysisReport({ analysis }: DetailedAnalysisReportProps) {
-  const transition = analysis.probableTransitionZones[0]
-  const visibleNotes = analysis.noteAnalyses
+  const transition = analysis.probableTransitionZones?.[0]
+  const visibleNotes = (analysis.noteAnalyses ?? [])
     .slice()
     .sort((a, b) => b.usableScore - a.usableScore)
     .slice(0, 8)
@@ -340,15 +343,15 @@ function DetailedAnalysisReport({ analysis }: DetailedAnalysisReportProps) {
           <span className="eyebrow">Detailed Analysis</span>
           <h3>Relatório acústico</h3>
         </div>
-        <small>{analysis.frameCount} frames</small>
+        <small>{analysis.frameCount ?? 0} frames</small>
       </div>
 
       <div className="analysis-summary-grid">
-        <AnalysisCard label="Range absoluto" value={formatRangeWithReliability(analysis.absoluteRange)} />
-        <AnalysisCard label="Range confiável" value={formatRangeWithReliability(analysis.reliableRange)} />
-        <AnalysisCard label="Range sustentado" value={formatRangeWithReliability(analysis.sustainedRange)} />
-        <AnalysisCard label="Range usável" value={formatRangeWithReliability(analysis.usableRange)} />
-        <AnalysisCard label="Zona confortável" value={formatRangeWithReliability(analysis.comfortableTessitura)} />
+        <AnalysisCard label="Range absoluto" value={formatRangeWithReliability(analysis.absoluteRange ?? null)} />
+        <AnalysisCard label="Range confiável" value={formatRangeWithReliability(analysis.reliableRange ?? null)} />
+        <AnalysisCard label="Range sustentado" value={formatRangeWithReliability(analysis.sustainedRange ?? null)} />
+        <AnalysisCard label="Range usável" value={formatRangeWithReliability(analysis.usableRange ?? null)} />
+        <AnalysisCard label="Zona confortável" value={formatRangeWithReliability(analysis.comfortableTessitura ?? null)} />
       </div>
 
       <div className="transition-card">
@@ -378,7 +381,7 @@ function DetailedAnalysisReport({ analysis }: DetailedAnalysisReportProps) {
         </div>
       ) : null}
 
-      <StageSummaryGrid summaries={analysis.stageSummaries} />
+      <StageSummaryGrid summaries={analysis.stageSummaries ?? []} />
 
       {visibleNotes.length > 0 ? (
         <div className="note-analysis-table">
@@ -402,7 +405,7 @@ function DetailedAnalysisReport({ analysis }: DetailedAnalysisReportProps) {
       ) : null}
 
       <div className="warning-list">
-        {analysis.warnings.map((warning) => (
+        {(analysis.warnings ?? ['Resultado salvo em formato antigo; refaça o diagnóstico para ver a análise completa.']).map((warning) => (
           <p key={warning}>{warning}</p>
         ))}
       </div>
@@ -415,6 +418,14 @@ type StageSummaryGridProps = {
 }
 
 function StageSummaryGrid({ summaries }: StageSummaryGridProps) {
+  if (summaries.length === 0) {
+    return (
+      <div className="warning-list">
+        <p>Resumo por etapa indisponível para este resultado salvo. Refazer o diagnóstico atualiza o relatório.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="stage-summary-grid" aria-label="Resumo por etapa">
       {summaries.map((summary) => (
