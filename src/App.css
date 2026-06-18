@@ -1477,6 +1477,10 @@
     align-items: start;
   }
 
+  .app-header h1 {
+    font-size: 3.4rem;
+  }
+
   .history-panel {
     order: 2;
   }
@@ -1492,6 +1496,44 @@
   }
 }
 
+@media (max-width: 860px) {
+  .app-header h1 {
+    font-size: 2.8rem;
+  }
+
+  .arcade-target strong {
+    font-size: 2.6rem;
+  }
+
+  .stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .control-row,
+  .arcade-control-row {
+    grid-template-columns: 1fr;
+  }
+
+  .button-grid,
+  .range-button-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .range-stepper {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .modal-grid,
+  .range-modal-actions,
+  .analysis-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .note-lane {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 720px) {
   .app-shell {
     width: min(100% - 20px, 1180px);
@@ -1499,7 +1541,7 @@
   }
 
   .app-header h1 {
-    font-size: 2.4rem;
+    font-size: 2.2rem;
   }
 
   .arcade-stage,
@@ -1528,33 +1570,65 @@
   }
 
   .arcade-target strong {
-    font-size: 2.6rem;
+    font-size: 2.4rem;
   }
 
   .note-lane {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(130px, 1fr);
+    grid-template-columns: none;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    padding-bottom: 10px;
+  }
+
+  .note-tile {
+    min-height: 78px;
+  }
+
+  .note-tile strong {
+    font-size: 1.25rem;
+  }
+
+  .stat-grid,
+  .button-grid,
+  .range-button-grid,
+  .mode-tabs,
+  .game-hud {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .target-strip,
-  .stat-grid,
-  .control-row,
-  .button-grid,
-  .range-button-grid,
-  .range-stepper,
+  .stage-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .range-stepper {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .modal-grid,
   .range-modal-actions,
-  .analysis-summary-grid,
-  .transition-card,
-  .stage-summary-grid,
-  .mode-tabs,
-  .game-hud {
+  .analysis-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .control-row,
+  .transition-card {
     grid-template-columns: 1fr;
+  }
+
+  .note-analysis-table {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .note-table-header,
   .note-table-row {
     grid-template-columns: 52px minmax(0, 1fr) 48px 48px 48px;
     font-size: 0.74rem;
+    min-width: 400px;
   }
 
   .range-modal-backdrop {
@@ -1576,10 +1650,59 @@
   }
 
   .range-prompt-card strong {
-    font-size: 2.6rem;
+    font-size: 2.4rem;
   }
 
   .meter-track {
     height: 68px;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-header h1 {
+    font-size: 1.9rem;
+  }
+
+  .stat-grid,
+  .button-grid,
+  .range-button-grid,
+  .mode-tabs,
+  .game-hud {
+    grid-template-columns: 1fr;
+  }
+
+  .range-stepper {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .modal-grid,
+  .range-modal-actions,
+  .analysis-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .target-strip,
+  .stage-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .note-lane {
+    grid-auto-columns: minmax(110px, 1fr);
+  }
+
+  .note-tile {
+    min-height: 70px;
+  }
+
+  .arcade-target strong {
+    font-size: 2rem;
+  }
+
+  .range-prompt-card strong {
+    font-size: 2rem;
+  }
+
+  .range-modal {
+    padding: 14px;
   }
 }

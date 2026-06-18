@@ -25,6 +25,9 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
 }
 
 * {
@@ -45,6 +48,7 @@ input {
 
 button {
   color: inherit;
+  touch-action: manipulation;
 }
 
 h1,
