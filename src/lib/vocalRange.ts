@@ -244,36 +244,36 @@ export const VOCAL_RANGE_STEPS: VocalRangeStep[] = [
   {
     id: 'speech',
     title: 'Voz falada',
-    prompt: 'Fale: "Oi, tudo bem com você?"',
-    detail: 'Use sua voz normal, sem tentar cantar ou projetar.',
+    prompt: 'Fale normalmente por alguns segundos, como se estivesse conversando.',
+    detail: 'Isso ajuda o app a entender onde sua voz costuma ficar no dia a dia.',
     durationMs: 5500,
   },
   {
     id: 'low',
     title: 'Grave confortável',
-    prompt: 'Desça em "hum" até o grave confortável.',
-    detail: 'Pare antes de forçar ou perder estabilidade.',
+    prompt: 'Desça a voz devagar em "u" ou "ô", sem forçar.',
+    detail: 'Pare quando a voz começar a sumir, apertar ou ficar desconfortável.',
     durationMs: 6500,
   },
   {
     id: 'break',
-    title: 'Quebra vocal',
-    prompt: 'Faça uma sirene em "u" da fala até o agudo.',
-    detail: 'Deixe a voz virar se precisar; o app procura a zona de transição.',
+    title: 'Transição vocal',
+    prompt: 'Faça uma sirene em "u", subindo do grave para o agudo de forma suave.',
+    detail: 'Não tente cantar alto. A ideia é observar onde a voz muda, falha ou fica instável.',
     durationMs: 7500,
   },
   {
     id: 'denseHigh',
-    title: 'Agudo denso',
-    prompt: 'Faça um "iuhul" ou "hey" com voz conectada.',
-    detail: 'Procure o agudo forte/conectado, sem virar soproso.',
+    title: 'Agudo com voz cheia',
+    prompt: 'Suba a voz mantendo o som mais cheio, firme e confortável.',
+    detail: 'Não force. Pare se sentir aperto, dor ou pressão. Essa etapa tenta estimar até onde sua voz mantém mais corpo.',
     durationMs: 6500,
   },
   {
     id: 'lightHigh',
-    title: 'Agudo leve',
-    prompt: 'Suba em "u" leve, como sirene.',
-    detail: 'Use voz leve/falsete se ela aparecer naturalmente.',
+    title: 'Agudo com voz leve',
+    prompt: 'Suba em "u" deixando a voz ficar leve naturalmente.',
+    detail: 'Aqui não precisa manter corpo. Deixe a voz afinar ou virar falsete se isso acontecer naturalmente.',
     durationMs: 6500,
   },
 ]
@@ -298,9 +298,9 @@ const STAGE_ORDER: VocalDiagnosticStage[] = [
 const STAGE_LABELS: Record<VocalDiagnosticStage, string> = {
   spoken: 'Voz falada',
   comfortable_low: 'Grave confortável',
-  siren_break: 'Sirene/quebra',
-  dense_high: 'Agudo denso',
-  light_high: 'Agudo leve',
+  siren_break: 'Transição vocal',
+  dense_high: 'Agudo com voz cheia',
+  light_high: 'Agudo com voz leve',
 }
 
 export function createVocalRangeStepDraft(): VocalRangeStepDraft {
@@ -1112,7 +1112,7 @@ function getNoteObservations(segment: VoiceSegment, classification: VocalZoneCla
   }
 
   if (classification === 'light_like_breathy_or_weak') {
-    observations.push('energia acústica baixa no agudo')
+    observations.push('pouca energia acústica no agudo (voz soprada ou fraca)')
   }
 
   return observations.length ? observations : ['estável o suficiente para a análise']
@@ -1317,13 +1317,13 @@ function getAnalysisWarnings(
   }
 
   if (sustainedSegments.length === 0) {
-    warnings.push('Dados insuficientes para range sustentado.')
+    warnings.push('Dados insuficientes para notas sustentadas. Tente sustentar algumas notas por mais tempo.')
   } else if (new Set(sustainedSegments.map((segment) => segment.roundedMidi)).size === 1) {
     warnings.push('Apenas uma nota sustentada foi detectada com confiança.')
   }
 
   if (transitionZones.length === 0) {
-    warnings.push('A estimativa de transição precisa de mais dados ao redor do agudo.')
+    warnings.push('A estimativa de transição precisa de mais dados na região da sirene e agudo.')
   }
 
   warnings.push('Classificações de registro são estimativas acústicas, não diagnóstico fisiológico.')
@@ -1471,7 +1471,7 @@ function estimateVoiceType(
     label: best.profile.label,
     confidence,
     detail:
-      'Estimativa baseada em range denso e centro da voz falada. Classificação vocal real também depende de timbre, passaggi e conforto sustentado.',
+      'Estimativa baseada na voz cheia e centro da fala. Classificação vocal real também depende de timbre, passaggi e conforto sustentado.',
   }
 }
 

@@ -1212,6 +1212,14 @@
   font-size: 1.25rem;
 }
 
+.analysis-subheading {
+  margin: 8px 0 2px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 .analysis-heading small {
   color: var(--text-muted);
   font-weight: 800;

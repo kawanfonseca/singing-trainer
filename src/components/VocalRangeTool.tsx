@@ -180,15 +180,15 @@ export function VocalRangeTool({
         <RangeStat label="Agudo" value={displayResult?.highNote ?? '--'} />
         <RangeStat label="Semitons" value={displayResult ? displayResult.semitones.toString() : '--'} />
         <RangeStat label="Oitavas" value={displayResult?.octaveLabel ?? '--'} />
-        <RangeStat label="Tipo" value={displayResult?.typeEstimate.label ?? '--'} />
-        <RangeStat label="Confiável" value={formatCompactRange(displayResult?.analysis?.reliableRange ?? null)} />
-        <RangeStat label="Denso até" value={displayResult?.denseHighNote ?? '--'} />
-        <RangeStat label="Quebra" value={displayResult?.breakEstimate?.note ?? '--'} />
+        <RangeStat label="Voz cheia até" value={displayResult?.denseHighNote ?? '--'} />
+        <RangeStat label="Voz leve até" value={displayResult?.lightHighNote ?? '--'} />
+        <RangeStat label="Centro da fala" value={displayResult?.speechCenterNote ?? '--'} />
+        <RangeStat label="Transição" value={displayResult?.breakEstimate?.note ?? '--'} />
       </div>
 
       {displayResult ? (
         <div className="range-insight">
-          <strong>{displayResult.typeEstimate.confidence}%</strong>
+          <strong>{formatConfidenceCapped(displayResult.typeEstimate.confidence)}%</strong>
           <span>{displayResult.typeEstimate.detail}</span>
         </div>
       ) : null}
@@ -264,6 +264,12 @@ export function VocalRangeTool({
               })}
             </div>
 
+            {activeStepIndex >= 3 ? (
+              <div className="diagnosis">
+                Existem duas etapas de agudo porque cantar alto com voz cheia e cantar alto com voz leve são coisas diferentes. A primeira mostra até onde a voz mantém mais corpo. A segunda mostra até onde a voz sobe quando fica mais leve ou em falsete.
+              </div>
+            ) : null}
+
             <div className="range-prompt-card">
               <span>{activeStep.prompt}</span>
               <strong>{currentNote}</strong>
@@ -277,15 +283,15 @@ export function VocalRangeTool({
             <div className="range-result-grid modal-grid">
               <RangeStat label="Amostras da etapa" value={getStepSampleCount(draft, activeStep.id).toString()} />
               <RangeStat label="Amostras totais" value={totalSamples.toString()} />
-              <RangeStat label="Centro fala" value={liveResult?.speechCenterNote ?? savedResult?.speechCenterNote ?? '--'} />
-              <RangeStat label="Quebra provável" value={liveResult?.breakEstimate?.note ?? savedResult?.breakEstimate?.note ?? '--'} />
-              <RangeStat label="Denso" value={liveResult?.denseHighNote ?? savedResult?.denseHighNote ?? '--'} />
-              <RangeStat label="Leve" value={liveResult?.lightHighNote ?? savedResult?.lightHighNote ?? '--'} />
+              <RangeStat label="Centro da fala" value={liveResult?.speechCenterNote ?? savedResult?.speechCenterNote ?? '--'} />
+              <RangeStat label="Transição provável" value={liveResult?.breakEstimate?.note ?? savedResult?.breakEstimate?.note ?? '--'} />
+              <RangeStat label="Voz cheia" value={liveResult?.denseHighNote ?? savedResult?.denseHighNote ?? '--'} />
+              <RangeStat label="Voz leve" value={liveResult?.lightHighNote ?? savedResult?.lightHighNote ?? '--'} />
             </div>
 
             {liveResult?.breakEstimate ? (
               <div className="range-insight modal-insight">
-                <strong>{liveResult.breakEstimate.confidence}%</strong>
+                <strong>{formatConfidenceCapped(liveResult.breakEstimate.confidence)}%</strong>
                 <span>{liveResult.breakEstimate.detail}</span>
               </div>
             ) : null}
@@ -338,30 +344,34 @@ function DetailedAnalysisReport({ analysis }: DetailedAnalysisReportProps) {
 
   return (
     <section className="analysis-report" aria-label="Análise detalhada">
+      <div className="diagnosis">
+        Este relatório não é um diagnóstico médico. Ele usa o microfone para estimar estabilidade, altura, intensidade e possíveis mudanças de coordenação vocal.
+      </div>
+
       <div className="analysis-heading">
         <div>
-          <span className="eyebrow">Detailed Analysis</span>
+          <span className="eyebrow">Análise detalhada</span>
           <h3>Relatório acústico</h3>
         </div>
-        <small>{analysis.frameCount ?? 0} frames</small>
+        <small>{analysis.frameCount ?? 0} amostras</small>
       </div>
 
       <div className="analysis-summary-grid">
-        <AnalysisCard label="Range absoluto" value={formatRangeWithReliability(analysis.absoluteRange ?? null)} />
-        <AnalysisCard label="Range confiável" value={formatRangeWithReliability(analysis.reliableRange ?? null)} />
-        <AnalysisCard label="Range sustentado" value={formatRangeWithReliability(analysis.sustainedRange ?? null)} />
-        <AnalysisCard label="Range usável" value={formatRangeWithReliability(analysis.usableRange ?? null)} />
-        <AnalysisCard label="Zona confortável" value={formatRangeWithReliability(analysis.comfortableTessitura ?? null)} />
+        <AnalysisCard label="Todas as notas detectadas" value={formatRangeWithReliability(analysis.absoluteRange ?? null)} />
+        <AnalysisCard label="Notas detectadas com confiança" value={formatRangeWithReliability(analysis.reliableRange ?? null)} />
+        <AnalysisCard label="Notas sustentadas" value={formatRangeWithReliability(analysis.sustainedRange ?? null)} />
+        <AnalysisCard label="Notas cantáveis com estabilidade" value={formatRangeWithReliability(analysis.usableRange ?? null)} />
+        <AnalysisCard label="Região mais confortável" value={formatRangeWithReliability(analysis.comfortableTessitura ?? null)} />
       </div>
 
       <div className="transition-card">
         <div>
           <span>Zona provável de transição</span>
-          <strong>{transition ? `${transition.fromNote} - ${transition.toNote}` : 'Não detectado com confiança'}</strong>
+          <strong>{transition ? `${transition.fromNote} - ${transition.toNote}` : 'Não detectada com confiança'}</strong>
         </div>
         {transition ? (
           <div>
-            <small>{Math.round(transition.confidence * 100)}% confiança</small>
+            <small>{formatConfidenceCapped(transition.confidence * 100)}% de confiança · {formatConfidenceLabel(transition.confidence * 100)}</small>
             <ul>
               {transition.evidence.map((item) => (
                 <li key={item}>{item}</li>
@@ -375,35 +385,40 @@ function DetailedAnalysisReport({ analysis }: DetailedAnalysisReportProps) {
 
       {analysis.registerLikeZones ? (
         <div className="analysis-summary-grid">
-          <AnalysisCard label="Denso provável" value={formatRangeWithReliability(analysis.registerLikeZones.denseLikely)} />
-          <AnalysisCard label="Transição provável" value={formatRangeWithReliability(analysis.registerLikeZones.transitionLikely)} />
-          <AnalysisCard label="Leve provável" value={formatRangeWithReliability(analysis.registerLikeZones.lightLikely)} />
+          <AnalysisCard label="Faixa provável de voz cheia" value={formatRangeWithReliability(analysis.registerLikeZones.denseLikely)} />
+          <AnalysisCard label="Zona provável de transição" value={formatRangeWithReliability(analysis.registerLikeZones.transitionLikely)} />
+          <AnalysisCard label="Faixa provável de voz leve" value={formatRangeWithReliability(analysis.registerLikeZones.lightLikely)} />
         </div>
       ) : null}
 
+      <h4 className="analysis-subheading">Por etapa</h4>
       <StageSummaryGrid summaries={analysis.stageSummaries ?? []} />
 
       {visibleNotes.length > 0 ? (
-        <div className="note-analysis-table">
-          <div className="note-table-header">
-            <span>Nota</span>
-            <span>Classe</span>
-            <span>Estab.</span>
-            <span>Ataque</span>
-            <span>Usável</span>
-          </div>
-          {visibleNotes.map((note) => (
-            <div key={note.midi} className="note-table-row">
-              <strong>{note.noteName}</strong>
-              <span>{formatClassification(note.classification)}</span>
-              <span>{note.stabilityScore}</span>
-              <span>{note.attackScore}</span>
-              <span>{note.usableScore}</span>
+        <>
+          <h4 className="analysis-subheading">Notas detectadas</h4>
+          <div className="note-analysis-table">
+            <div className="note-table-header">
+              <span>Nota</span>
+              <span>Classificação</span>
+              <span>Estab.</span>
+              <span>Ataque</span>
+              <span>Usável</span>
             </div>
-          ))}
-        </div>
+            {visibleNotes.map((note) => (
+              <div key={note.midi} className="note-table-row">
+                <strong>{note.noteName}</strong>
+                <span>{formatClassification(note.classification)}</span>
+                <span>{note.stabilityScore}</span>
+                <span>{note.attackScore}</span>
+                <span>{note.usableScore}</span>
+              </div>
+            ))}
+          </div>
+        </>
       ) : null}
 
+      <h4 className="analysis-subheading">Observações</h4>
       <div className="warning-list">
         {(analysis.warnings ?? ['Resultado salvo em formato antigo; refaça o diagnóstico para ver a análise completa.']).map((warning) => (
           <p key={warning}>{warning}</p>
@@ -436,29 +451,29 @@ function StageSummaryGrid({ summaries }: StageSummaryGridProps) {
           </div>
           <dl>
             <div>
-              <dt>Frames</dt>
+              <dt>Amostras</dt>
               <dd>
                 {summary.voicedFrameCount}/{summary.frameCount}
               </dd>
             </div>
             <div>
-              <dt>Mediana</dt>
+              <dt>Nota central</dt>
               <dd>{summary.medianNote ?? '--'}</dd>
             </div>
             <div>
-              <dt>Conf.</dt>
+              <dt>Clareza</dt>
               <dd>{formatPercent(summary.averageConfidence)}</dd>
             </div>
             <div>
-              <dt>RMS</dt>
+              <dt>Volume médio</dt>
               <dd>{formatNumber(summary.averageRms)}</dd>
             </div>
             <div>
-              <dt>Segmentos</dt>
+              <dt>Trechos</dt>
               <dd>{summary.segmentCount}</dd>
             </div>
             <div>
-              <dt>Quebras</dt>
+              <dt>Possíveis quebras</dt>
               <dd>{summary.breakEventCount}</dd>
             </div>
           </dl>
@@ -494,14 +509,6 @@ function RangeStat({ label, value }: RangeStatProps) {
       <strong>{value}</strong>
     </div>
   )
-}
-
-function formatCompactRange(range: RangeResult | null) {
-  if (!range) {
-    return '--'
-  }
-
-  return `${range.lowestNote} - ${range.highestNote}`
 }
 
 function formatRangeWithReliability(range: RangeResult | null) {
@@ -555,11 +562,27 @@ function formatNumber(value: number | null) {
 }
 
 function formatClassification(value: string) {
-  return value
-    .replaceAll('_', ' ')
-    .replace('dense like', 'denso')
-    .replace('light like', 'leve')
-    .replace('transition unstable', 'transição')
+  switch (value) {
+    case 'dense_like_stable': return 'voz cheia estável'
+    case 'dense_like_unstable': return 'voz cheia instável'
+    case 'transition_unstable': return 'zona de transição'
+    case 'light_like_stable': return 'voz leve estável'
+    case 'light_like_breathy_or_weak': return 'voz leve fraca/soprada'
+    case 'not_enough_data': return 'dados insuficientes'
+    case 'unclassified': return 'não classificado'
+    default: return value.replaceAll('_', ' ')
+  }
+}
+
+function formatConfidenceCapped(value: number) {
+  return Math.min(Math.round(value), 99)
+}
+
+function formatConfidenceLabel(value: number) {
+  if (value < 40) return 'baixa'
+  if (value < 70) return 'média'
+  if (value < 85) return 'alta'
+  return 'muito alta'
 }
 
 function formatDate(value: string) {
