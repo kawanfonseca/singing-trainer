@@ -1485,6 +1485,51 @@ function formatOctaves(semitones: number) {
   return `${octaves.toFixed(1)} oitavas`
 }
 
+export function formatVocalRangeShareText(result: VocalRangeResult): string {
+  const a = result.analysis
+  const absRange = a.absoluteRange ? `${a.absoluteRange.lowestNote} - ${a.absoluteRange.highestNote}` : null
+  const relRange = a.reliableRange ? `${a.reliableRange.lowestNote} - ${a.reliableRange.highestNote}` : null
+  const susRange = a.sustainedRange ? `${a.sustainedRange.lowestNote} - ${a.sustainedRange.highestNote}` : null
+  const usbRange = a.usableRange ? `${a.usableRange.lowestNote} - ${a.usableRange.highestNote}` : null
+  const comfRange = a.comfortableTessitura
+    ? `${a.comfortableTessitura.lowestNote} - ${a.comfortableTessitura.highestNote}`
+    : null
+  const transZone = a.probableTransitionZones?.[0]
+
+  return [
+    'Resultado do teste de perfil vocal',
+    '',
+    `Centro da fala: ${result.speechCenterNote ?? 'dados insuficientes'}`,
+    `Grave confortável: ${result.lowNote}`,
+    `Alcance total detectado: ${absRange ?? 'dados insuficientes'}`,
+    `Notas detectadas com confiança: ${relRange ?? 'dados insuficientes'}`,
+    `Notas sustentadas: ${susRange ?? 'dados insuficientes'}`,
+    `Notas cantáveis com estabilidade: ${usbRange ?? 'dados insuficientes'}`,
+    `Região mais confortável: ${comfRange ?? 'dados insuficientes'}`,
+    transZone
+      ? `Zona provável de transição: ${transZone.fromNote} - ${transZone.toNote} (confiança ${formatShareConfidenceLabel(transZone.confidence * 100)})`
+      : 'Zona provável de transição: não detectada',
+    '',
+    `Maior nota com voz cheia: ${result.denseHighNote ?? 'dados insuficientes'}`,
+    `Pico em voz leve: ${result.lightHighNote ?? 'dados insuficientes'}`,
+    '',
+    'Observações:',
+    '',
+    '- A zona de transição é uma estimativa acústica, não diagnóstico médico.',
+    '- O resultado depende da qualidade do microfone, ambiente e execução do teste.',
+    '- Se houve poucos dados sustentados, algumas medidas podem aparecer como "dados insuficientes".',
+    '',
+    'Gerado pelo Singing Trainer.',
+  ].join('\n')
+}
+
+function formatShareConfidenceLabel(value: number) {
+  if (value < 40) return 'baixa'
+  if (value < 70) return 'média'
+  if (value < 85) return 'alta'
+  return 'muito alta'
+}
+
 function isVocalRangeResult(value: unknown): value is VocalRangeResult {
   if (!value || typeof value !== 'object') {
     return false

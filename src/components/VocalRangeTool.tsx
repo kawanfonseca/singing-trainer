@@ -3,9 +3,11 @@ import {
   BarChart3,
   CheckCircle2,
   ChevronsUpDown,
+  Copy,
   Mic,
   RotateCcw,
   Save,
+  Share2,
   Square,
   Wand2,
   X,
@@ -19,6 +21,7 @@ import {
   clearVocalRangeResult,
   createVocalRangeDraft,
   createVocalRangeStepDraft,
+  formatVocalRangeShareText,
   getStepSampleCount,
   getTotalSampleCount,
   readVocalRangeResult,
@@ -51,6 +54,7 @@ export function VocalRangeTool({
   const [stepProgress, setStepProgress] = useState(0)
   const [draft, setDraft] = useState<VocalRangeDraft>(() => createVocalRangeDraft())
   const [savedResult, setSavedResult] = useState<VocalRangeResult | null>(() => readVocalRangeResult())
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null)
   const readingRef = useRef(reading)
   const startedAtRef = useRef(0)
   const activeStep = VOCAL_RANGE_STEPS[activeStepIndex]
@@ -152,6 +156,48 @@ export function VocalRangeTool({
     saveIfReady()
     setIsMeasuring(false)
     setIsOpen(false)
+  }
+
+  async function handleShare() {
+    const result = liveResult ?? savedResult
+
+    if (!result) {
+      return
+    }
+
+    const text = formatVocalRangeShareText(result)
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ text })
+      } catch {
+        await copyToClipboard(text)
+      }
+    } else {
+      await copyToClipboard(text)
+    }
+  }
+
+  async function handleCopy() {
+    const result = liveResult ?? savedResult
+
+    if (!result) {
+      return
+    }
+
+    const text = formatVocalRangeShareText(result)
+    await copyToClipboard(text)
+  }
+
+  async function copyToClipboard(text: string) {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopyFeedback('Resultado copiado!')
+    } catch {
+      setCopyFeedback('Não foi possível copiar automaticamente. Selecione e copie o texto manualmente.')
+    }
+
+    setTimeout(() => setCopyFeedback(null), 3000)
   }
 
   return (
@@ -297,7 +343,24 @@ export function VocalRangeTool({
             ) : null}
 
             {liveResult?.analysis ?? savedResult?.analysis ? (
-              <DetailedAnalysisReport analysis={(liveResult?.analysis ?? savedResult?.analysis)!} />
+              <>
+                <DetailedAnalysisReport analysis={(liveResult?.analysis ?? savedResult?.analysis)!} />
+                <div className="share-actions">
+                  <button type="button" className="button secondary" onClick={handleShare}>
+                    <Share2 size={16} />
+                    Compartilhar resultado
+                  </button>
+                  <button type="button" className="button secondary" onClick={handleCopy}>
+                    <Copy size={16} />
+                    Copiar resultado
+                  </button>
+                </div>
+                {copyFeedback ? (
+                  <div className="share-feedback" aria-live="polite">
+                    {copyFeedback}
+                  </div>
+                ) : null}
+              </>
             ) : null}
 
             <div className="range-modal-actions">
