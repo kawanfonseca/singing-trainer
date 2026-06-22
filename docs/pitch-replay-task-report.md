@@ -213,6 +213,59 @@ Files added or updated for this export:
 - `C:\Users\Kawan\OneDrive\Área de Trabalho\singing-trainer\src\App.css`
 - `C:\Users\Kawan\OneDrive\Área de Trabalho\singing-trainer\docs\pitch-replay-task-report.md`
 
+## Final Ranking, UX, and pt-BR Localization Update
+
+### Brazilian Portuguese as the primary UI language
+
+All user-facing `/pitch` copy now uses natural Brazilian Portuguese: navigation, recording/import states, buttons, helper text, errors, disclaimers, Simple View, Teacher View, zones, review cards, sustained-note tables, phrase cards, tonal estimate, saved-range comparison, empty states, and exports. “Pitch Replay” remains the product name. Navigation labels shared by `/`, `/range`, and `/pitch` were aligned to `Curso de canto` and `Extensão vocal`.
+
+The caveats remain explicit in Portuguese: the tool does not know the original melody; a centered note may still be melodically wrong; tonal-center estimation may fail without accompaniment/reference; and acoustic signals are not diagnoses of technique, voice type, support, strain, or vocal health.
+
+### Lesson priority versus technical severity
+
+`ReviewMoment` now contains a separate numeric `lessonPriority` while retaining the machine-readable `severity`. Technical severity still reflects centering statistics. Lesson priority ranks contextual value in this order: phrase-level issues, meaningful sustained instability/drift, phrase-ending drops, recurring flat/sharp sustained patterns, positive comparison regions, and finally isolated centering windows.
+
+The Simple View top three is selected by `getLessonReviewMoments`, sorting by `lessonPriority`, duration, and maximum deviation. Teacher View continues to show the complete technically ranked list. This prevents a valid but musically weak 0.2–0.3 second event from displacing a phrase or sustained-note pattern useful in a lesson.
+
+### Short blip handling
+
+An isolated moment below 0.35 seconds whose only signal is `pitch-centering` is forced to technical severity `minor` and receives a lesson-priority penalty. It can remain in the Teacher View details, but it cannot be promoted as strong without being merged into a larger sustained or phrase context. Short display times remain localized, for example `Por volta de 0:19 · 0,5s`, and never show identical integer endpoints.
+
+### Phrase candidates and merged moments
+
+Phrases below 80% within 30 cents now create explicit `phrase issue` review candidates, allowing phrase context to participate in lesson ranking. Same-note overlapping candidates remain merged with combined signals. Display signals are localized (`frase para revisar`, `instável`, `sustentada alta`, `queda no fim da frase`, and related labels), while internal enum values remain English for code/schema stability.
+
+### Review package language and schema stability
+
+The package keeps `packageType`, `packageVersion: 1`, `reportSchemaVersion: 3`, JSON keys, enum values, and structured field names in English. Human-readable content is pt-BR:
+
+- Simple View labels/details;
+- Teacher View labels/details and display classifications;
+- review timestamps, display signals, and display severity;
+- moment explanations, concerns, warnings, and caveats;
+- tonal display label/confidence;
+- `reviewerSummaryMarkdown`, now headed `Pacote de revisão do Pitch Replay`, `Resumo rápido`, `Principais momentos para revisar`, `Destaques da visão do professor`, and `Ressalvas`.
+
+Additional display-only fields (`displaySeverity`, `displayLabelCounts`, `displayClassification`, `displayAttack`, `displayLabel`, and `confidenceLabel`) provide localized values without replacing stable machine-readable fields.
+
+### Files changed in this calibration
+
+- `C:\Users\Kawan\OneDrive\Área de Trabalho\singing-trainer\src\lib\pitchAnalysis.ts` — phrase candidates, lesson-priority calculation, short-blip severity guard, and Portuguese explanations.
+- `C:\Users\Kawan\OneDrive\Área de Trabalho\singing-trainer\src\lib\pitchReviewPackage.ts` — shared lesson ranking, localization helpers, Portuguese human-readable package content, and Markdown.
+- `C:\Users\Kawan\OneDrive\Área de Trabalho\singing-trainer\src\pages\PitchPage.tsx` — complete pt-BR UI and lesson-ranked Simple View.
+- `C:\Users\Kawan\OneDrive\Área de Trabalho\singing-trainer\src\App.tsx` — localized shared navigation.
+- `C:\Users\Kawan\OneDrive\Área de Trabalho\singing-trainer\src\pages\RangePage.tsx` — localized shared navigation.
+- `C:\Users\Kawan\OneDrive\Área de Trabalho\singing-trainer\docs\pitch-replay-task-report.md` — this calibration report.
+
+### Verification performed
+
+- TypeScript/Vite production build.
+- ESLint and `git diff --check`.
+- Deterministic synthetic take with centered sustained notes, a sustained 36-cent pattern, and an isolated 0.25-second 48-cent event.
+- Confirmed top lesson ranking: phrase issue, sustained instability, then sustained sharp pattern; the isolated blip did not dominate the top three.
+- Confirmed package/report schema versions remain 1/3, human metric labels and display signals are pt-BR, Markdown is Portuguese, and audio remains excluded.
+- Local smoke tests cover `/`, `/range`, `/pitch`, disclaimer/navigation copy, and approximately 390 px mobile width. Real microphone permission, personal-file import, and browser download still require an explicit user gesture on the target device.
+
 ## Final Status
 
 **Complete.** The Pitch Replay and Teacher View acceptance criteria are implemented. Remaining items are accuracy, performance, and product extensions that require broader real-user testing rather than missing core functionality.

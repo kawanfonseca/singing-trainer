@@ -18,11 +18,12 @@ const MAJOR_PROFILE = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.6
 
 export type PitchSample = { timestamp: number; frequency: number; note: string; midi: number; cents: number; confidence: number }
 export type PitchZoneDistribution = { excellent: number; good: number; attention: number; betweenNotes: number }
-export type ReviewMomentType = 'pitch-centering' | 'unstable' | 'end-of-phrase drop' | 'flat sustained area' | 'sharp sustained area' | 'best centered'
+export type ReviewMomentType = 'phrase issue' | 'pitch-centering' | 'unstable' | 'end-of-phrase drop' | 'flat sustained area' | 'sharp sustained area' | 'best centered'
 export type ReviewSeverity = 'minor' | 'moderate' | 'strong'
 export type ReviewMoment = {
   timestamp: number; endTime: number; note: string; averageCents: number; maxDeviation: number
   duration: number; type: ReviewMomentType; signals: ReviewMomentType[]; severity: ReviewSeverity
+  lessonPriority: number
   percentAbove30: number; driftCents: number | null; stabilityCents: number | null; endDropCents: number | null
   explanation: string
 }
@@ -81,7 +82,7 @@ export function analyzePitch(buffer: AudioBuffer, savedRange: VocalRangeResult |
     raw.push({ timestamp: (offset + FRAME_SIZE / 2) / buffer.sampleRate, frequency, midi, note: midiToNoteName(midi) ?? '--', cents: (midi - Math.round(midi)) * 100, confidence: clarity })
   }
   const samples = smoothSamples(raw)
-  if (samples.length < 3) throw new Error('No clear pitched singing was detected. Try a quieter room and sing a little longer.')
+  if (samples.length < 3) throw new Error('Não foi detectado canto com altura clara. Tente um ambiente mais silencioso e cante por um pouco mais de tempo.')
 
   const hopSeconds = HOP_SIZE / buffer.sampleRate
   const weights = samples.map((sample) => Math.max(0.1, (sample.confidence - MIN_CLARITY) / (1 - MIN_CLARITY)))
@@ -98,7 +99,7 @@ export function analyzePitch(buffer: AudioBuffer, savedRange: VocalRangeResult |
   const sustainedNotes = detectSustainedNotes(samples, hopSeconds)
   const phrases = detectPhrases(samples, hopSeconds)
   const endOfPhraseDrops = detectEndDrops(sustainedNotes, phrases)
-  const reviewMoments = buildReviewMoments(samples, sustainedNotes, endOfPhraseDrops, hopSeconds)
+  const reviewMoments = buildReviewMoments(samples, sustainedNotes, endOfPhraseDrops, phrases, hopSeconds)
   const noteDistribution = buildNoteDistribution(samples, hopSeconds)
   const acceptable = zones.excellent + zones.good
 
@@ -172,7 +173,7 @@ function detectPhrases(samples: PitchSample[], hop: number): PhraseInsight[] {
     const regionMidis = items.map((item) => Math.round(item.midi)).sort((a, b) => a - b)
     const classification: PhraseInsight['classification'] = centering >= 90 ? 'strong/reference phrase' : centering >= 80 ? 'mostly stable' : centering >= 70 ? 'review lightly' : 'needs review'
     const bias = signedAverage < -7 ? 'flat' : signedAverage > 7 ? 'sharp' : 'balanced'
-    const biggestIssue = classification === 'strong/reference phrase' ? 'use as a positive reference' : classification === 'mostly stable' ? (bias === 'balanced' ? 'small isolated deviations' : `slight ${bias} tendency`) : classification === 'review lightly' ? (bias === 'balanced' ? 'some centering variation' : `${bias} tendency`) : (bias === 'balanced' ? 'recurring centering variation' : `recurring ${bias} tendency`)
+    const biggestIssue = classification === 'strong/reference phrase' ? 'use como referência positiva' : classification === 'mostly stable' ? (bias === 'balanced' ? 'pequenos desvios isolados' : `leve tendência ${bias === 'flat' ? 'baixa' : 'alta'}`) : classification === 'review lightly' ? (bias === 'balanced' ? 'alguma variação de centralização' : `tendência ${bias === 'flat' ? 'baixa' : 'alta'}`) : (bias === 'balanced' ? 'variação recorrente de centralização' : `tendência ${bias === 'flat' ? 'baixa' : 'alta'} recorrente`)
     return { index: index + 1, start: items[0].timestamp, end: items.at(-1)!.timestamp + hop, duration: segmentDuration(items, hop), region: `${midiToNoteName(quantile(regionMidis, .15))}–${midiToNoteName(quantile(regionMidis, .85))}`, centeringPercent: centering, averageDeviation: average(cents.map(Math.abs)), bias, classification, biggestIssue }
   })
 }
@@ -181,7 +182,7 @@ function detectEndDrops(notes: SustainedNote[], phrases: PhraseInsight[]) {
   return notes.filter((note) => note.driftCents <= -15 && phrases.some((phrase) => Math.abs(phrase.end - note.end) <= .3)).map((note): EndPhraseDrop => ({ timestamp: Math.max(note.start, note.end - .45), endTime: note.end, note: note.note, dropCents: Math.abs(note.driftCents), duration: note.duration }))
 }
 
-function buildReviewMoments(samples: PitchSample[], notes: SustainedNote[], drops: EndPhraseDrop[], hop: number) {
+function buildReviewMoments(samples: PitchSample[], notes: SustainedNote[], drops: EndPhraseDrop[], phrases: PhraseInsight[], hop: number) {
   const candidates: ReviewMomentDraft[] = []
   const windows: PitchSample[][] = []
   for (let index = 0; index < samples.length; index += 5) {
@@ -190,21 +191,22 @@ function buildReviewMoments(samples: PitchSample[], notes: SustainedNote[], drop
   }
   for (const items of windows) {
     const avg = average(items.map((item) => item.cents)); const max = Math.max(...items.map((item) => Math.abs(item.cents)))
-    if (average(items.map((item) => Math.abs(item.cents))) >= PITCH_BANDS.good) candidates.push(moment(items, hop, 'pitch-centering', avg, max, 'This region spent notable time more than 30 cents from the nearest note center.'))
+    if (average(items.map((item) => Math.abs(item.cents))) >= PITCH_BANDS.good) candidates.push(moment(items, hop, 'pitch-centering', avg, max, 'Este trecho passou um tempo relevante a mais de 30 cents do centro da nota mais próxima.'))
   }
-  notes.filter((note) => note.stabilityCents > 10).forEach((note) => candidates.push(noteMoment(note, 'unstable', `This sustained ${note.note} varied by about ${Math.round(note.stabilityCents)} cents around its average.`)))
-  notes.filter((note) => Math.abs(note.averageCents) >= 20).forEach((note) => candidates.push(noteMoment(note, note.averageCents < 0 ? 'flat sustained area' : 'sharp sustained area', `This sustained area averaged ${formatSigned(note.averageCents)} from the nearest note center.`)))
-  drops.forEach((drop) => candidates.push({ timestamp: drop.timestamp, endTime: drop.endTime, note: drop.note, averageCents: 0, maxDeviation: 0, duration: drop.endTime - drop.timestamp, type: 'end-of-phrase drop', driftCents: -drop.dropCents, stabilityCents: null, endDropCents: drop.dropCents, explanation: 'Pitch fell near the end of this phrase. A teacher may want to review breath, vowel shape, or tension without assuming a cause.' }))
+  notes.filter((note) => note.stabilityCents > 10).forEach((note) => candidates.push(noteMoment(note, 'unstable', `A nota sustentada ${note.note} variou cerca de ${Math.round(note.stabilityCents)} cents ao redor da média.`)))
+  notes.filter((note) => Math.abs(note.averageCents) >= 20).forEach((note) => candidates.push(noteMoment(note, note.averageCents < 0 ? 'flat sustained area' : 'sharp sustained area', `Este trecho sustentado ficou, em média, ${formatSigned(note.averageCents)} do centro da nota mais próxima.`)))
+  drops.forEach((drop) => candidates.push({ timestamp: drop.timestamp, endTime: drop.endTime, note: drop.note, averageCents: 0, maxDeviation: 0, duration: drop.endTime - drop.timestamp, type: 'end-of-phrase drop', driftCents: -drop.dropCents, stabilityCents: null, endDropCents: drop.dropCents, explanation: 'A altura caiu perto do final da frase. O professor pode revisar respiração, formato da vogal ou tensão sem presumir uma causa.' }))
+  phrases.filter((phrase) => phrase.centeringPercent < 80).forEach((phrase) => candidates.push({ timestamp: phrase.start, endTime: phrase.end, note: phrase.region, averageCents: phrase.bias === 'flat' ? -phrase.averageDeviation : phrase.averageDeviation, maxDeviation: phrase.averageDeviation, duration: phrase.duration, type: 'phrase issue', driftCents: null, stabilityCents: null, endDropCents: null, explanation: `Frase ${phrase.index}: ${phrase.biggestIssue}. ${Math.round(phrase.centeringPercent)}% do tempo com voz ficou dentro de 30 cents.` }))
   const centered = [...notes].filter((note) => Math.abs(note.averageCents) <= 12).sort((a, b) => Math.abs(a.averageCents) - Math.abs(b.averageCents))[0]
-  if (centered) candidates.push(noteMoment(centered, 'best centered', `A well-centered sustained ${centered.note}; useful as a positive comparison point.`))
+  if (centered) candidates.push(noteMoment(centered, 'best centered', `A nota sustentada ${centered.note} ficou bem centralizada e serve como comparação positiva.`))
   else if (windows.length) {
     const best = [...windows].sort((a, b) => average(a.map((item) => Math.abs(item.cents))) - average(b.map((item) => Math.abs(item.cents))))[0]
-    candidates.push(moment(best, hop, 'best centered', average(best.map((item) => item.cents)), Math.max(...best.map((item) => Math.abs(item.cents))), 'The most centered available region in this take; useful as a relative comparison point.'))
+    candidates.push(moment(best, hop, 'best centered', average(best.map((item) => item.cents)), Math.max(...best.map((item) => Math.abs(item.cents))), 'Este foi o trecho mais centralizado disponível e serve como comparação relativa.'))
   }
-  return mergeReviewMoments(candidates.map((candidate) => addMomentStats(candidate, samples))).sort((a, b) => reviewPriority(b) - reviewPriority(a)).slice(0, 12)
+  return addLessonPriorities(mergeReviewMoments(candidates.map((candidate) => addMomentStats(candidate, samples)))).sort((a, b) => reviewPriority(b) - reviewPriority(a)).slice(0, 12)
 }
 
-type ReviewMomentDraft = Omit<ReviewMoment, 'signals' | 'severity' | 'percentAbove30'>
+type ReviewMomentDraft = Omit<ReviewMoment, 'signals' | 'severity' | 'lessonPriority' | 'percentAbove30'>
 
 function moment(items: PitchSample[], hop: number, type: ReviewMomentType, avg: number, max: number, explanation: string): ReviewMomentDraft { return { timestamp: items[0].timestamp, endTime: items.at(-1)!.timestamp + hop, note: mostCommon(items.map((item) => item.note)), averageCents: avg, maxDeviation: max, duration: segmentDuration(items, hop), type, driftCents: null, stabilityCents: standardDeviation(items.map((item) => item.cents)), endDropCents: null, explanation } }
 function noteMoment(note: SustainedNote, type: ReviewMomentType, explanation: string): ReviewMomentDraft { return { timestamp: note.start, endTime: note.end, note: note.note, averageCents: note.averageCents, maxDeviation: note.maxDeviation, duration: note.duration, type, driftCents: note.driftCents, stabilityCents: note.stabilityCents, endDropCents: null, explanation } }
@@ -216,11 +218,12 @@ function addMomentStats(moment: ReviewMomentDraft, samples: PitchSample[]): Revi
   const maxDeviation = usable.length ? Math.min(50, Math.max(...usable.map((sample) => Math.abs(sample.cents)))) : Math.min(50, moment.maxDeviation)
   const percentAbove30 = usable.length ? usable.filter((sample) => Math.abs(sample.cents) > PITCH_BANDS.good).length / usable.length * 100 : 0
   const enriched = { ...moment, averageCents, maxDeviation, percentAbove30, signals: [moment.type] }
-  return { ...enriched, severity: getMomentSeverity(enriched) }
+  return { ...enriched, severity: getMomentSeverity(enriched), lessonPriority: 0 }
 }
 
 function getMomentSeverity(moment: Pick<ReviewMoment, 'averageCents' | 'maxDeviation' | 'percentAbove30' | 'duration' | 'signals'>): ReviewSeverity {
   if (moment.signals.includes('best centered')) return 'minor'
+  if (moment.duration < .35 && moment.signals.every((signal) => signal === 'pitch-centering')) return 'minor'
   let points = moment.percentAbove30 >= 60 ? 2 : moment.percentAbove30 >= 25 ? 1 : 0
   points += Math.abs(moment.averageCents) >= 30 ? 2 : Math.abs(moment.averageCents) >= 20 ? 1 : 0
   points += moment.duration >= 1 ? 1 : 0
@@ -247,7 +250,19 @@ function mergeReviewMoments(items: ReviewMoment[]) {
       driftCents: maxByMagnitude(group.map((item) => item.driftCents)), stabilityCents: maxNullable(group.map((item) => item.stabilityCents)), endDropCents: maxNullable(group.map((item) => item.endDropCents)),
       explanation: [...new Set(group.map((item) => item.explanation))].join(' '),
     }
-    return { ...merged, severity: getMomentSeverity(merged) }
+    return { ...merged, severity: getMomentSeverity(merged), lessonPriority: 0 }
+  })
+}
+
+function addLessonPriorities(items: ReviewMoment[]) {
+  const sustainedPatterns = items.flatMap((item) => item.signals.filter((signal) => signal === 'flat sustained area' || signal === 'sharp sustained area'))
+  return items.map((item) => {
+    const signalBase = item.signals.includes('phrase issue') ? 100 : item.signals.includes('unstable') ? 82 : item.signals.includes('end-of-phrase drop') ? 76 : item.signals.some((signal) => signal === 'flat sustained area' || signal === 'sharp sustained area') ? 64 : item.signals.includes('best centered') ? 24 : 10
+    const severityBoost = item.severity === 'strong' ? 18 : item.severity === 'moderate' ? 9 : 0
+    const contextBoost = Math.min(15, item.duration * 5)
+    const recurringBoost = item.signals.some((signal) => sustainedPatterns.filter((candidate) => candidate === signal).length > 1) ? 12 : 0
+    const briefPenalty = item.duration < .35 && item.signals.every((signal) => signal === 'pitch-centering') ? 25 : 0
+    return { ...item, lessonPriority: Math.round((signalBase + severityBoost + contextBoost + recurringBoost - briefPenalty) * 10) / 10 }
   })
 }
 
@@ -282,7 +297,7 @@ function buildNoteDistribution(samples: PitchSample[], hop: number) {
 }
 
 function estimateTonalCenter(distribution: NoteDistributionItem[], notes: SustainedNote[], voicedTime: number): TonalCenter {
-  if (voicedTime < 3 || distribution.length < 3) return { label: null, confidence: 'Low', commonPitchClasses: [], explanation: 'Not enough reliable tonal information.' }
+  if (voicedTime < 3 || distribution.length < 3) return { label: null, confidence: 'Low', commonPitchClasses: [], explanation: 'Não há informação tonal confiável suficiente.' }
   const pitchClasses = Array(12).fill(0) as number[]
   distribution.forEach((item) => { pitchClasses[((item.midi % 12) + 12) % 12] += item.seconds })
   notes.forEach((note) => { pitchClasses[((note.midi % 12) + 12) % 12] += note.duration * note.confidence })
@@ -291,7 +306,7 @@ function estimateTonalCenter(distribution: NoteDistributionItem[], notes: Sustai
   const minor = NOTE_NAMES[(best.root + 9) % 12]
   const confidence = voicedTime > 12 && gap > .12 ? 'High' : voicedTime > 6 && gap > .06 ? 'Medium' : 'Low'
   const commonPitchClasses = pitchClasses.map((seconds, index) => ({ name: NOTE_NAMES[index], seconds })).sort((a, b) => b.seconds - a.seconds).slice(0, 4).map((item) => item.name)
-  return { label: `${best.name} major / ${minor} minor`, confidence, commonPitchClasses, explanation: 'Estimate from duration-weighted sung pitch classes and stable notes only; without accompaniment or a reference melody it may be wrong.' }
+  return { label: `${best.name} major / ${minor} minor`, confidence, commonPitchClasses, explanation: 'Estimativa baseada na duração das classes de altura cantadas e em notas estáveis; sem acompanhamento ou melodia de referência, ela pode estar errada.' }
 }
 
 function compareRange(samples: PitchSample[], saved: VocalRangeResult | null): RangeComparison {
@@ -303,7 +318,7 @@ function compareRange(samples: PitchSample[], saved: VocalRangeResult | null): R
   return { available: true, savedRange: `${range.lowestNote}–${range.highestNote}`, withinPercent: inside, nearLowerPercent: samples.filter((sample) => sample.midi >= lowMidi && sample.midi <= lowMidi + 2).length / samples.length * 100, nearUpperPercent: samples.filter((sample) => sample.midi <= highMidi && sample.midi >= highMidi - 2).length / samples.length * 100, lowestRelation: relation(minMidi, lowMidi, 'lower'), highestRelation: relation(maxMidi, highMidi, 'upper') }
 }
 
-function relation(value: number, limit: number, side: 'lower' | 'upper') { const delta = value - limit; if (Math.abs(delta) < .5) return `at saved ${side} limit`; if (side === 'lower') return delta < 0 ? `${Math.abs(Math.round(delta))} semitones below saved range` : `${Math.round(delta)} semitones above lower limit`; return delta > 0 ? `${Math.round(delta)} semitones above saved range` : `${Math.abs(Math.round(delta))} semitones below upper limit` }
+function relation(value: number, limit: number, side: 'lower' | 'upper') { const delta = value - limit; if (Math.abs(delta) < .5) return `no limite ${side === 'lower' ? 'inferior' : 'superior'} salvo`; if (side === 'lower') return delta < 0 ? `${Math.abs(Math.round(delta))} semitons abaixo da extensão salva` : `${Math.round(delta)} semitons acima do limite inferior`; return delta > 0 ? `${Math.round(delta)} semitons acima da extensão salva` : `${Math.abs(Math.round(delta))} semitons abaixo do limite superior` }
 function smoothSamples(samples: PitchSample[]) { return samples.map((sample, index) => { const neighbors = samples.slice(Math.max(0, index - 2), index + 3).filter((candidate) => Math.abs(candidate.timestamp - sample.timestamp) < .18); const cents = median(neighbors.map((candidate) => candidate.cents)); const midi = Math.round(sample.midi) + cents / 100; return { ...sample, cents, midi, frequency: midiToFrequency(midi), note: midiToNoteName(midi) ?? sample.note } }) }
 function downmix(buffer: AudioBuffer) { const mono = new Float32Array(buffer.length); for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) { const data = buffer.getChannelData(channel); for (let index = 0; index < data.length; index += 1) mono[index] += data[index] / buffer.numberOfChannels } return mono }
 function segmentDuration(items: PitchSample[], hop: number) { return items.at(-1)!.timestamp - items[0].timestamp + hop }

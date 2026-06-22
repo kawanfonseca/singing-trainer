@@ -342,8 +342,8 @@ function App() {
   return (
     <main className="app-shell course-shell">
       <nav className="page-nav" aria-label="Main navigation">
-        <a className="active" href="/">Training course</a>
-        <a href="/range">Vocal range</a>
+        <a className="active" href="/">Curso de canto</a>
+        <a href="/range">Extensão vocal</a>
         <a href="/pitch">Pitch Replay</a>
       </nav>
       <header className="app-header">
