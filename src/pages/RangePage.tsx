@@ -6,6 +6,11 @@ export function RangePage() {
 
   return (
     <main className="app-shell range-page">
+      <nav className="page-nav" aria-label="Main navigation">
+        <a href="/">Training course</a>
+        <a className="active" href="/range">Vocal range</a>
+        <a href="/pitch">Pitch Replay</a>
+      </nav>
       <header className="range-page-header">
         <span className="eyebrow">Singing Trainer</span>
         <h1>Teste de perfil vocal</h1>
